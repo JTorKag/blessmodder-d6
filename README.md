@@ -1,17 +1,21 @@
+## Forward
+
+I updated Loggy's Dom5 Bless Modder to work for D6. This is about 95% Loggy's hard work and 5% mine. I just did the work to convert it. If something isn't working, don't bother loggy about it please. 
+
 # Blessmodder
 
-This is a tool that modifies Dominions 5 executables to change the array of possible bless effects.
+This is a tool that modifies Dominions 6 executables to change the array of possible bless effects.
 
 Illwinter very kindly set up the new bless effect system using a data table that can easily be edited in a platform-independent way without needing to alter instructions. Not only is it easy to modify, but the vast majority of unit abilities can be made into their own bless effects, simply by finding and altering this table.
 
-This requires a copy of Dominions 5 to use. Please, respect Illwinter and **DO NOT** share original or modified Dominions executables directly. This is set up to allow the passing around of .dbm files, dm-like files which allow this program to modify the main game executable. 
+This requires a copy of Dominions 6 to use. Please, respect Illwinter and **DO NOT** share original or modified Dominions executables directly. This is set up to allow the passing around of .dbm files, dm-like files which allow this program to modify the main game executable. 
 
 ## Running
 
 Copy the blessmodder executable and the .dbm bless mod files into the folder containing the Dominions executable you run.
 
-For 64bit Windows users, this is Steam/SteamApps/common/Dominions5/win64.
-For everyone else, this is just Steam/SteamApps/common/Dominions5.
+For 64bit Windows users, this is Steam/SteamApps/common/Dominions6/win64.
+For everyone else, this is just Steam/SteamApps/common/Dominions6.
 
 Windows users can use the .exe provided in releases. Otherwise, the blessmodder.py python file can be used directly as it has no external dependencies, and should hopefully work on almost any version of Python 3.
 
@@ -88,7 +92,8 @@ Unlike .dm files, there are no top-level name files. Two dashes (--) can (and sh
       * 4: Astral
       * 5: Death
       * 6: Nature
-      * 7: Blood
+      * 7: Glamour
+      * 8: Blood
   * **\#path2** (secondary path ID)
     * Sets the secondary path requirement for this bless effect. In addition to the above values, -1 may be used to represent no secondary path.
   * **\#path1level** (primary path bless point cost)
@@ -103,8 +108,8 @@ An effect is incarnate if it has a path 1 level of 5 or higher. Non-incarnate hi
 
 ## Technical stuff
 
-I wrote a bit about the bless table format [here](https://docs.google.com/spreadsheets/d/1kK1nb0Sse2DZg-cyjPappypgIE_lpnPmLIKCqpdYRJ8/edit#gid=0). It's not terribly formal, but it might help somebody.
+I updated loggy's bit about the bless table format [here](https://docs.google.com/spreadsheets/d/1MlZvm4tkDLzMQUhcuqJX9TkZQoOOyvx9Q6Sy0TcZFPM/edit?usp=sharing). It's not terribly formal, but it might help somebody.
 
 ## Thanks
 
-Illwinter, for making Dominions, and for making bless data in such a nice table that permits so many new options.
+Loggy, Illwinter, for making Dominions, and for making bless data in such a nice table that permits so many new options.

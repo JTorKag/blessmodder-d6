@@ -68,10 +68,18 @@
 
 #selectbless 8
 #clear
-#name "Flaming Arrows"
+#name "Flaming Arrows Does Not Work"
 #path1 0
 #path1level 3
 #effect10buffs 8388608	-- flaming arrows
+#end
+
+#selectbless 90
+#clear
+#name "Protective Force"
+#path1 0
+#path1level 3
+#effect10buffs 549755813888	-- flaming arrows
 #end
 
 #selectbless 9

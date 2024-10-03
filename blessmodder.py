@@ -7,11 +7,11 @@ import stat
 import traceback
 import argparse
 
-ver = "1.0.2"
-domver = 5.58
+ver = "1.0.0"
+domver = "6.19b"
 
 BLESS_TABLE_SIZE = 100
-BLESS_TABLE_RECORD_SIZE = 0x78
+BLESS_TABLE_RECORD_SIZE = 0xC0
 
 BLESS_TABLE_LENGTH = BLESS_TABLE_SIZE * BLESS_TABLE_RECORD_SIZE
 
@@ -19,18 +19,18 @@ BLESS_TABLE_LENGTH = BLESS_TABLE_SIZE * BLESS_TABLE_RECORD_SIZE
 BLESS_TABLE_START_DATA = b"Increased Morale"
 BLESS_TABLE_START_DATA += b"\x00" * 0x14
 BLESS_TABLE_START_DATA += b"\xff\xff"
-BLESS_TABLE_START_DATA += b"\x00" * 0xa
-BLESS_TABLE_START_DATA += b"\x34\x01\x00\x00\x01"
-BLESS_TABLE_START_DATA += b"\x00" * 0x37
+BLESS_TABLE_START_DATA += b"\x00" * 0x12
+BLESS_TABLE_START_DATA += b"\x34\x01\x00\x00\x00\x00\x00\x00\x01" 
+BLESS_TABLE_START_DATA += b"\x00" * 0x6F
 BLESS_TABLE_START_DATA += b"\xff"
-BLESS_TABLE_START_DATA += b"\x00" * 0xb
+BLESS_TABLE_START_DATA += b"\x00" * 0x0f
 BLESS_TABLE_START_DATA += b"Superior Morale"
 BLESS_TABLE_START_DATA += b"\x00" * 0x13
 BLESS_TABLE_START_DATA += b"\x01\x00\xff\xff"
-BLESS_TABLE_START_DATA += b"\x00" * 0xa
-BLESS_TABLE_START_DATA += b"\x34\x01\x00\x00\x01\x00\x00\x00\x27\x02\x00\x00\x01"
+BLESS_TABLE_START_DATA += b"\x00" * 0x12
+BLESS_TABLE_START_DATA += b"\x34\x01\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x27\x02\x00\x00\x00\x00\x00\x00\x01"
 
-BLESS_TABLE_CRC32 = 1716275267
+BLESS_TABLE_CRC32 = 4248252080
 
 class Executable(object):
     def __init__(self, fp):
@@ -64,6 +64,16 @@ class Executable(object):
             self.blesstableOffset = self.content.find(BLESS_TABLE_START_DATA)
             print(f"Bless table offset in {self.fp} = {hex(self.blesstableOffset)}")
 
+holder = ""
+def blessdebugfile(bless, step = ""):
+    global holder
+    holder += bless.hex()+ "# "+step+" \n"
+def blessdebugfilewrite(bless):
+    with open("blessbebug.txt", "w") as outfile:
+        outfile.write(bless)
+    
+
+
 class BlessEffect(object):
     def __init__(self, content):
         self.name = struct.unpack("<32s", content[:0x20])[0]
@@ -71,10 +81,9 @@ class BlessEffect(object):
         self.path1level = struct.unpack("<h", content[0x22:0x24])[0]
         self.path2 = struct.unpack("<h", content[0x24:0x26])[0]
         self.path2level = struct.unpack("<h", content[0x26:0x28])[0]
-        self.effect10buffs = struct.unpack("<q", content[0x28:0x30])[0]
+        self.effect10buffs = int.from_bytes(content[0x28:0x38], byteorder='little')
         self.effects = []
         self.scales = []
-        # Strip null bytes
         if self.name[-1] == 0:
             while 1:
                 if len(self.name) > 0 and self.name[-1] == 0:
@@ -82,14 +91,13 @@ class BlessEffect(object):
                     continue
                 break
         for x in range(0, 7):
-            startoffset = 0x30 + (x * 8)
-            effectid = struct.unpack("<i", content[startoffset:startoffset+4])[0]
-            effectmagnitude = struct.unpack("<i", content[startoffset+4:startoffset+8])[0]
+            startoffset = 0x38 + (x * 16)
+            effectid, effectmagnitude = struct.unpack("<qq", content[startoffset:startoffset+16])
             if effectid <= 0:
                 break
             self.effects.append((effectid, effectmagnitude))
         for x in range(0, 6):
-            startoffset = 0x6c + (x * 2)
+            startoffset = 0xB0 + (x * 2)
             scaleid = content[startoffset]
             scaleamt = content[startoffset+1]
             if scaleid <= 0:
@@ -117,6 +125,9 @@ class BlessEffect(object):
         if len(self.scales) >= 4:
             raise ValueError(f"No free scale slots for bless {self.name}")
         self.scales.append((scaleid, scaleamt))
+
+
+
     def pack(self):
         # Order effects: 550 always goes first, 551 always last
         if (550, 1) in self.effects:
@@ -127,29 +138,50 @@ class BlessEffect(object):
             self.effects.append((551, 1))
 
         out = b""
+        #blessdebugfile(out,"start")
         out += struct.pack("<32s", self.name)
+        #blessdebugfile(out,"Name")
         out += struct.pack("<h", self.path1)
+        #blessdebugfile(out,"path1")
         out += struct.pack("<h", self.path1level)
+        #blessdebugfile(out,"pathlevel1")
         out += struct.pack("<h", self.path2)
+        #blessdebugfile(out,"path2")
         out += struct.pack("<h", self.path2level)
-        out += struct.pack("<q", self.effect10buffs)
+        #blessdebugfile(out,"pathlevel2")
+        out += self.effect10buffs.to_bytes(16, byteorder='little')
+        #blessdebugfile(out,"blesseffect10")
         for effect in self.effects:
             effid, effmag = effect
-            out += struct.pack("<i", effid)
-            out += struct.pack("<i", effmag)
+            #print("id"+str(effid))
+            #print("mag"+str(effmag))
+            out += struct.pack("<q", effid)
+            #blessdebugfile(out,"effect id " +str(effid))
+            out += struct.pack("<q",effmag)
+            #blessdebugfile(out,"effect id " +str(effid)+"mag"+str(effmag))
+            
         numToPad = 7 - len(self.effects)
         for x in range(0, numToPad):
-            out += b"\x00" * 8
-        # Looks like an extra 4b here
-        out += b"\x00\x00\x00\x00"
+            out += b"\x00" * 16
+            #blessdebugfile(out,"effect pad " + str(x))
+        # Looks like an extra 8b here
+        out += b"\x00\x00\x00\x00\x00\x00\x00\x00"
+        #blessdebugfile(out, "8b pad")
         for scale in self.scales:
             effid, effmag = scale
             out += struct.pack("<B", effid)
+            #blessdebugfile(out, "scale id " + str(effid))
             out += struct.pack("<B", effmag)
+            #blessdebugfile(out, "scale mag " +str(effmag))
         # This seems to expect two terminators for some reason
         out += b"\xff\x00\xff\x00"
-        numToPad = 4 - len(self.scales)
+        #blessdebugfile(out, "two terminators")
+        numToPad = 6 - len(self.scales) ############### was 4
         out += b"\x00\x00" * numToPad
+        #blessdebugfile(out, "scale pad")
+        #print(f"Final packed data: {out.hex()} | Final Length: {len(out)}")
+        #print(f"{BLESS_TABLE_START_DATA.hex()}")
+        #blessdebugfilewrite(holder)
         if len(out) != BLESS_TABLE_RECORD_SIZE:
             raise ValueError(f"Edited bless data for {self.name} has an invalid length {hex(len(out))} vs {hex(BLESS_TABLE_RECORD_SIZE)}")
         return out
@@ -173,7 +205,7 @@ class BlessTable(object):
         # This includes interpreting whatever is packed after the bless data table as blesses, which typically
         # will have no or junk as names.
         # Most of these are invalid and not shown on the table due to a path1 > 7 and/or path1level == 0
-        # But, on some builds of dom5, the resulting "bless effects" can result in some that pass the checks
+        # But, on some builds of dom6, the resulting "bless effects" can result in some that pass the checks
         # to be displayed in game
         # And this is why I have to take away one of the bless effect slots :(
         self.blesses[99].path1 = -1
@@ -215,13 +247,13 @@ class DBM(object):
             blessindex = None
             for lineindex, line in enumerate(f):
                 linenum = lineindex + 1
+                line = line.split('--', 1)[0].strip()
+                if not line:
+                    continue
                 if blessindex is None:
                     blesseffect = None
                 else:
                     blesseffect = bt.blesses[blessindex]
-                line = line.strip()
-                if line == "": continue
-                if line.startswith("--"): continue
 
                 m = re.match(r"#selectbless\W+(\d*)", line)
                 if m is not None:
@@ -258,8 +290,8 @@ class DBM(object):
                     effmag = int(m.group(2))
                     if effid < 0 or effid > 5:
                         raise ValueError(f"{self.fp}:{linenum} Bad scale ID: {effid}, must be 0-5 inclusive")
-                    if effmag > 3 or effmag < -3 or effmag == 0:
-                        raise ValueError(f"{self.fp}:{linenum} Bad scale value: {effmag}, must be nonzero and -3 to +3")
+                    if effmag > 5 or effmag < -5 or effmag == 0:
+                        raise ValueError(f"{self.fp}:{linenum} Bad scale value: {effmag}, must be nonzero and -5 to +5")
                     blesseffect.addScale(effid, effmag)
                     continue
 
@@ -286,15 +318,15 @@ class DBM(object):
                 m = re.match("#path1\\W+?([-0-9]*)", line)
                 if m is not None:
                     blesseffect.path1 = int(m.group(1))
-                    if blesseffect.path1 > 7 or blesseffect.path1 < 0:
-                        raise ValueError(f"{self.fp}:{linenum} path1 must be 0-7 inclusive")
+                    if blesseffect.path1 > 8 or blesseffect.path1 < 0:
+                        raise ValueError(f"{self.fp}:{linenum} path1 must be 0-8 inclusive")
                     continue
 
                 m = re.match("#path2\\W+?([-0-9]*)", line)
                 if m is not None:
                     blesseffect.path2 = int(m.group(1))
-                    if blesseffect.path2 > 7 or blesseffect.path2 < -1:
-                        raise ValueError(f"{self.fp}:{linenum} path2 must be -1 to 7 inclusive")
+                    if blesseffect.path2 > 8 or blesseffect.path2 < -1:
+                        raise ValueError(f"{self.fp}:{linenum} path2 must be -1 to 8 inclusive")
                     continue
 
                 m = re.match("#path1level\\W+?([-0-9]*)", line)
@@ -311,12 +343,13 @@ class DBM(object):
                         raise ValueError(f"{self.fp}:{linenum} path2level must be 0-20")
                     continue
 
-                m = re.match("#effect10buffs\\W+?([-0-9]*)", line)
+                m = re.match(r"#effect10buffs\W+?([0-9]+)", line)  
                 if m is not None:
-                    blesseffect.effect10buffs = int(m.group(1))
-                    if blesseffect.effect10buffs <= 0:
-                        raise ValueError(f"{self.fp}:{linenum} effect10buffs cannot be negative")
-                    if blesseffect.effect10buffs >= (1 << 64):
+                    effect10buffs = int(m.group(1))
+                    blesseffect.effect10buffs = effect10buffs
+                    if effect10buffs <= 0:
+                        raise ValueError(f"{self.fp}:{linenum} effect10buffs cannot be negative or zero")
+                    if effect10buffs >= (1 << 64):
                         raise ValueError(f"{self.fp}:{linenum} effect10buffs cannot exceed 2^64")
                     continue
 
@@ -331,7 +364,7 @@ class DBM(object):
 def locateExecutables():
     found = []
     thisdir = os.listdir(".")
-    for fp in ["dom5_amd64", "dom5_arm", "dom5_mac", "dom5_x86", "Dominions5.exe"]:
+    for fp in ["dom6_amd64", "dom6_mac", "dom6_x86", "Dominions6.exe"]:
         if fp in thisdir:
             found.append(fp)
     return found
@@ -360,7 +393,7 @@ def backupExecutables(executables):
 def main(fp=None):
     if fp is not None:
         os.chdir(fp)
-    print(f"Blessmodder v{ver}, intended for Dominions {domver}\n\n")
+    print(f"Blessmodder-d6 v{ver}, intended for Dominions {domver}\n\n")
     executables = locateExecutables()
     blessmods = locateBlessmods()
     backupExecutables(executables)
@@ -396,7 +429,7 @@ def dumpExecutable(executablefp, offset):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=f"Blessmodder v{ver} - intended for Dominions version {domver}")
+    parser = argparse.ArgumentParser(description=f"Blessmodder-d6 v{ver} - intended for Dominions version {domver}")
     parser.add_argument("-d", "--dumpexecutable", help="Path to binary to dump bless table from")
     parser.add_argument("-o", "--dumpexecutableoffset", help="Offset to start of bless table in binary")
     args = parser.parse_args()
